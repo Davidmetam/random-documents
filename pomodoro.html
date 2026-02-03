@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Flow</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #setup-view, #timer-view {
+            width: 80%;
+            max-width: 400px;
+            text-align: center;
+            transition: opacity 0.5s;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h2 {
+            font-weight: 300;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+        }
+
+        .setting-row {
+            margin-bottom: 25px;
+            text-align: left;
+            background: #252525;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: #4a90e2;
+            cursor: pointer;
+        }
+
+        select {
+            width: 100%;
+            background-color: #333;
+            color: white;
+            border: 1px solid #444;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .value-display {
+            float: right;
+            color: #4a90e2;
+            font-weight: bold;
+        }
+
+        /* Nuevo estilo para el tiempo total */
+        #total-time-info {
+            font-size: 0.9rem;
+            color: #888;
+            margin-top: 5px;
+            text-align: right;
+            font-style: italic;
+        }
+
+        #timer {
+            font-size: 6rem;
+            font-weight: bold;
+            margin: 10px 0;
+            letter-spacing: 2px;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        #status-text {
+            font-size: 1.2rem;
+            color: #888;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background-color: #333;
+            border-radius: 3px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: #3d6b99; 
+            transition: width 1s linear;
+        }
+
+        button {
+            background-color: #333;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+            margin: 0 5px;
+        }
+
+        button:hover {
+            background-color: #444;
+        }
+
+        #start-flow-btn {
+            width: 100%;
+            background-color: #2e7d32;
+            border-color: #2e7d32;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        #start-flow-btn:hover { background-color: #388e3c; }
+
+        #cancel-btn {
+            background-color: transparent;
+            border-color: #555;
+            color: #888;
+        }
+        
+        #cancel-btn:hover {
+            color: #c62828;
+            border-color: #c62828;
+        }
+
+        #pause-btn {
+            background-color: #4a90e2;
+            border-color: #4a90e2;
+            min-width: 120px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-view">
+        <h2>Configura tu Sesión</h2>
+        
+        <div class="setting-row">
+            <label>Cantidad de Pomodoros: <span id="pomodoro-count-display" class="value-display">4</span></label>
+            <input type="range" id="pomodoro-slider" min="1" max="20" value="4">
+            <div id="total-time-info">Tiempo Total Estimado: 2h 00m</div>
+        </div>
+
+        <div class="setting-row">
+            <label>Tipo de Sonido</label>
+            <div style="display: flex; gap: 10px;">
+                <select id="sound-type">
+                    <option value="digital">Digital</option>
+                    <option value="zen">Campana Zen</option>
+                    <option value="arcade">Arcade</option>
+                </select>
+                <button id="test-sound" style="padding: 5px 15px;">♫</button>
+            </div>
+        </div>
+
+        <div class="setting-row">
+            <label>Volumen</label>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5">
+        </div>
+
+        <button id="start-flow-btn">COMENZAR SESIÓN</button>
+    </div>
+
+    <div id="timer-view" class="hidden">
+        <div id="status-text">Pomodoro 1 / 4</div>
+        
+        <div class="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+
+        <div id="timer">25:00</div>
+        
+        <div style="display: flex; justify-content: center; margin-top: 20px;">
+            <button id="pause-btn">Pausar</button>
+            <button id="cancel-btn">Cancelar</button>
+        </div>
+    </div>
+
+    <script>
+        // Elementos del DOM
+        const setupView = document.getElementById('setup-view');
+        const timerView = document.getElementById('timer-view');
+        const pomodoroSlider = document.getElementById('pomodoro-slider');
+        const countDisplay = document.getElementById('pomodoro-count-display');
+        const totalTimeDisplay = document.getElementById('total-time-info');
+        const startBtn = document.getElementById('start-flow-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const timerDisplay = document.getElementById('timer');
+        const statusText = document.getElementById('status-text');
+        const progressBar = document.getElementById('progress-bar');
+        const volumeSlider = document.getElementById('volume-slider');
+        const soundType = document.getElementById('sound-type');
+        const testSoundBtn = document.getElementById('test-sound');
+
+        // Variables de estado
+        let totalPomodoros = 4;
+        let currentPomodoro = 1;
+        let longBreakCount = 0;
+        let isBreak = false;
+        let isPaused = false;
+        let timeLeft = 0;
+        let initialTime = 0;
+        let timerInterval = null;
+        let audioCtx = null;
+
+        // Inicializar display de tiempo
+        calculateTotalTime(4);
+
+        // Listeners
+        pomodoroSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            countDisplay.textContent = val;
+            totalPomodoros = val;
+            calculateTotalTime(val);
+        });
+
+        startBtn.addEventListener('click', startSession);
+        cancelBtn.addEventListener('click', cancelSession);
+        pauseBtn.addEventListener('click', togglePause);
+        testSoundBtn.addEventListener('click', () => playSound(soundType.value));
+
+        function calculateTotalTime(n) {
+            let minutes = 0;
+            // Sumar tiempo de trabajo (25 min por pomodoro)
+            minutes += n * 25;
+
+            // Sumar tiempo de descansos (uno después de cada pomodoro)
+            let tempLongBreakCount = 0;
+            for (let i = 1; i <= n; i++) {
+                if (i % 4 === 0) {
+                    tempLongBreakCount++;
+                    if (tempLongBreakCount === 1) minutes += 15;
+                    else if (tempLongBreakCount === 2) minutes += 20;
+                    else minutes += 30;
+                } else {
+                    minutes += 5;
+                }
+            }
+
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            totalTimeDisplay.textContent = `Tiempo Total Estimado: ${h}h ${m.toString().padStart(2, '0')}m`;
+        }
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSound(type) {
+            initAudio();
+            const gainNode = audioCtx.createGain();
+            const volume = parseFloat(volumeSlider.value);
+            gainNode.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'digital') {
+                const osc = audioCtx.createOscillator();
+                osc.connect(gainNode);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.setValueAtTime(880, now + 0.1);
+                gainNode.gain.setValueAtTime(volume, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.2);
+                
+                const osc2 = audioCtx.createOscillator();
+                osc2.connect(gainNode);
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(1760, now + 0.2);
+                gainNode.gain.setValueAtTime(volume, now + 0.2);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                osc2.start(now + 0.2);
+                osc2.stop(now + 0.5);
+            } 
+            else if (type === 'zen') {
+                const osc = audioCtx.createOscillator();
+                osc.connect(gainNode);
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, now);
+                gainNode.gain.setValueAtTime(0, now);
+                gainNode.gain.linearRampToValueAtTime(volume, now + 0.1);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 2.5);
+                osc.start(now);
+                osc.stop(now + 2.5);
+            }
+            else if (type === 'arcade') {
+                const osc = audioCtx.createOscillator();
+                osc.connect(gainNode);
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(600, now + 0.3);
+                gainNode.gain.setValueAtTime(volume * 0.5, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+        }
+
+        function startSession() {
+            initAudio();
+            setupView.classList.add('hidden');
+            timerView.classList.remove('hidden');
+            
+            currentPomodoro = 1;
+            longBreakCount = 0;
+            isBreak = false;
+            isPaused = false;
+            pauseBtn.textContent = "Pausar";
+            
+            startPhase();
+        }
+
+        function startPhase() {
+            clearInterval(timerInterval);
+            
+            if (currentPomodoro > totalPomodoros) {
+                alert("¡Sesión completada! Gran trabajo.");
+                cancelSession();
+                return;
+            }
+
+            if (!isBreak) {
+                // Configurar Pomodoro
+                timeLeft = 25 * 60;
+                statusText.textContent = `Enfoque: Pomodoro ${currentPomodoro} de ${totalPomodoros}`;
+                progressBar.style.backgroundColor = "#3d6b99"; // Azul tenue
+            } else {
+                // Configurar Descanso
+                let breakDuration = 5;
+                let breakType = "Corto";
+
+                // Es un descanso largo si acabamos de terminar un múltiplo de 4
+                if ((currentPomodoro - 1) % 4 === 0) {
+                    longBreakCount++;
+                    if (longBreakCount === 1) breakDuration = 15;
+                    else if (longBreakCount === 2) breakDuration = 20;
+                    else breakDuration = 30;
+                    breakType = "Largo";
+                }
+
+                timeLeft = breakDuration * 60;
+                statusText.textContent = `Descanso ${breakType}`;
+                progressBar.style.backgroundColor = "#4caf50"; // Verde tenue
+            }
+
+            initialTime = timeLeft;
+            updateDisplay();
+            startTimer();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (isPaused) return;
+
+                timeLeft--;
+                updateDisplay();
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    playSound(soundType.value);
+                    handlePhaseEnd();
+                }
+            }, 1000);
+        }
+
+        function handlePhaseEnd() {
+            if (!isBreak) {
+                // Terminó Pomodoro, sigue descanso
+                isBreak = true;
+                currentPomodoro++; 
+            } else {
+                // Terminó Descanso, sigue Pomodoro
+                isBreak = false;
+            }
+            // Pequeña pausa visual antes de cambiar
+            setTimeout(startPhase, 1500);
+        }
+
+        function updateDisplay() {
+            const m = Math.floor(timeLeft / 60);
+            const s = timeLeft % 60;
+            timerDisplay.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            
+            // Barra de progreso
+            const percentage = ((initialTime - timeLeft) / initialTime) * 100;
+            progressBar.style.width = `${percentage}%`;
+            
+            document.title = `${timerDisplay.textContent} - ${isBreak ? 'Descanso' : 'Focus'}`;
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            pauseBtn.textContent = isPaused ? "Reanudar" : "Pausar";
+            timerDisplay.style.opacity = isPaused ? "0.5" : "1";
+        }
+
+        function cancelSession() {
+            clearInterval(timerInterval);
+            setupView.classList.remove('hidden');
+            timerView.classList.add('hidden');
+            document.title = "Focus Flow";
+            calculateTotalTime(pomodoroSlider.value); // Resetear texto
+        }
+    </script>
+</body>
+</html>
